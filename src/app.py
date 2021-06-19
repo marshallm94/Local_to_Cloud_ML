@@ -1,33 +1,19 @@
 import json
 import pandas as pd
+import numpy as np
 from pickle import load
 
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return 'you really suck'
-
-@app.route('/api/', methods=['POST'])
-def api():
+@app.route('/get_predictions/', methods=['POST'])
+def predict():
     if request.method == 'POST':
-        data = request.data
-        print(data)
-        return jsonify( {'tmp': 'you get nothing' } )
-
-# @app.route('/predict/', methods=['POST'])
-# def predict(model):
-#     if request.method == 'POST':
-#         data = request.get_json()
-#         print(data)
-#         #prediction = model.predict(data)
-#         #return jsonify(prediction)
-#         return jsonify(prediction)
-#     print()
-# 
-#     return model.predict(X)
+        data = json.loads( request.data )
+        X = pd.read_json(data)
+        predictions = np.array2string( model.predict(X) )
+        return jsonify( predictions )
 
 if __name__ == "__main__":
     model_file = 'prod_model.joblib'
