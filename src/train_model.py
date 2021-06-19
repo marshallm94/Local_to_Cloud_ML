@@ -18,9 +18,9 @@ model = RandomForestClassifier()
 model.fit(X_train, y_train)
 
 # save model
-dump(model, open('prod_model.joblib', 'wb'))
+dump(model, open('../production_models/prod_model.joblib', 'wb'))
 
 # save test set
 test_df = pd.DataFrame(X_test)
 test_df['outcome'] = y_test
-dump(test_df, open('test_df.joblib', 'wb'))
+dump(test_df, open('../data/test_df.joblib', 'wb'))
