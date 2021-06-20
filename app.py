@@ -6,7 +6,7 @@ from pickle import load
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-model_file = 'production_models/prod_model.joblib'
+model_file = 'prod_model.joblib'
 prod_model = load(open( model_file, 'rb' ))
 
 @app.route('/get_predictions/', methods=['POST'])
