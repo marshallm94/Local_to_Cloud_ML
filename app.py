@@ -9,10 +9,6 @@ app = Flask(__name__)
 model_file = 'production_models/prod_model.joblib'
 prod_model = load(open( model_file, 'rb' ))
 
-@app.route('/', )
-def index():
-    return "you suck"
-
 @app.route('/get_predictions/', methods=['POST'])
 def predict(model=prod_model):
     if request.method == 'POST':

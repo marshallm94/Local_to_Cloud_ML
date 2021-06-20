@@ -4,8 +4,9 @@ FROM python:3.8-slim-buster
 
 WORKDIR /model_server
 
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+# only a subset of packages are required to run the server itself
+COPY ml_server_requirements.txt ml_server_requirements.txt
+RUN pip3 install -r ml_server_requirements.txt
 
 # copy everything (could probably omit .gitignore and a few other things but we
 # can come back to that...)
