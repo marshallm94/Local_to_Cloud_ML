@@ -8,7 +8,7 @@ to build/create the most interesting statistical model that solves an interestin
 1. Run [train_model.py](train_model.py)
 * Trains & saves a model.
 * Saves a test data set.
-2. Run `$ docker build --tag ml-server .`
+2. Run `$ docker build --tag ml-server:latest .`
 * Build a docker image using the model build in #1 and [app.py](app.py)
 3. Run `$ docker run --publish 5000:5000 ml-server`
 * Runs the container, mapping port 5000 of the container to port 5000 of the host.
