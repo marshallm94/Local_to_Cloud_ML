@@ -1,20 +1,34 @@
+import sys
 import requests
 import json
 from pickle import load
+from sklearn.metrics import accuracy_score
 import pandas as pd
+import numpy as np
 
-url = 'http://ec2-3-239-62-233.compute-1.amazonaws.com:8888/get_predictions/'
+if __name__ == '__main__':
 
-# load test data
-test_df_file = 'test_df.joblib'
-test_df = load(open(test_df_file, 'rb'))
-predictors = test_df.columns[ test_df.columns != 'outcome' ]
+    # get host:port as first command line argument
+    url = 'http://' + sys.argv[1] + '/get_predictions'
 
-tmp = test_df.loc[0:2, predictors]
-data_to_send = tmp.to_json(orient = 'records')
+    # load test data
+    test_df_file = 'test_df.joblib'
+    test_df = load(open(test_df_file, 'rb'))
+    predictors = test_df.columns[ test_df.columns != 'outcome' ]
 
-json_data = json.dumps(data_to_send)
-response = requests.post(url, json_data)
+    # prep data for API
+    tmp = test_df.loc[:, predictors]
+    data_to_send = tmp.to_json(orient = 'records')
+    json_data = json.dumps(data_to_send)
 
-predictions = response.text
-print(predictions)
+    # get predictions
+    response = requests.post(url, json_data)
+    predictions = response.json()
+
+    # evaluate predictions
+    test_df['predicted'] = predictions
+    eval_df = test_df[['outcome','predicted']]
+    acc = accuracy_score(eval_df['outcome'], eval_df['predicted'])
+
+    print(f"Accuracy = {np.round(acc, 2)}")
+
