@@ -1,0 +1,18 @@
+{
+    "family": "ECSMLServerTaskDefinition",
+    "containerDefinitions": [
+        {
+            "name": "MLServer",
+            "image": "",
+            "cpu": 1024,
+            "memoryReservation": 500,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ]
+        }
+    ]
+}

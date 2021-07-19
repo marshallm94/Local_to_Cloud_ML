@@ -17,7 +17,7 @@ to build/create the most interesting statistical model that solves an interestin
 3. Run `$ docker run --publish <host_port>:<container_port> ml-server`, which in this case, is:
 	`$ docker run --publish 8080:5000 ml-server`
 * Runs the container, mapping port 5000 of the container to port 8080 of the host.
-4. (In a separate shell) Run [test_api.py](test_api.py).
+4. (In a separate shell) Run `$ python test_api.py 127.0.0.1:8080` from the command line.
 * Loads the test data set from #1, and sends a sample to the Docker Flask API. Should output the class predictions for
   the requested instances.
 
@@ -53,6 +53,6 @@ to build/create the most interesting statistical model that solves an interestin
 11. Test that the instance is running by going to `<instance_public_ip_address>:8080/`; there should be a welcom
     message.
 
-## Steps to move "ML Prediction Server" to AWS Cloud
+## Steps to test if the service is working 
 
 1. Run `$ python test_api.py <instance_public_ip_address>:8080`. The accuracy of the test set will be printed.
