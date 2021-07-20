@@ -22,3 +22,6 @@
 		* *italic* = registry
 		* **bold** = repository
 		* The variable `$repo_url` contains both the registry and the repository.
+
+# Things to research
+* execution role ARN vs task role ARN

@@ -30,5 +30,5 @@ if __name__ == '__main__':
     eval_df = test_df[['outcome','predicted']]
     acc = accuracy_score(eval_df['outcome'], eval_df['predicted'])
 
-    print(f"Accuracy = {np.round(acc, 2)}")
+    print(f"Test Set Accuracy = {np.round(acc, 2)}")
 

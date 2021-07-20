@@ -1,18 +1,22 @@
 {
-    "family": "ECSMLServerTaskDefinition",
+    "family": "FargateMLServerTaskDefinition",
+    "networkMode": "awsvpc",
     "containerDefinitions": [
         {
             "name": "MLServer",
             "image": "",
-            "cpu": 1024,
-            "memoryReservation": 500,
             "portMappings": [
                 {
                     "containerPort": 5000,
-                    "hostPort": 8080,
+                    "hostPort": 5000,
                     "protocol": "tcp"
                 }
             ]
         }
-    ]
+    ],
+    "requiresCompatibilities": [
+      "FARGATE"
+    ],
+    "cpu": "256",
+    "memory":"512"
 }
