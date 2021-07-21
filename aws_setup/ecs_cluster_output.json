@@ -1,7 +1,7 @@
 {
     "cluster": {
-        "clusterArn": "arn:aws:ecs:us-east-1:595614743545:cluster/ECSMLServerCluster",
-        "clusterName": "ECSMLServerCluster",
+        "clusterArn": "arn:aws:ecs:us-east-1:595614743545:cluster/FargateMLServerCluster",
+        "clusterName": "FargateMLServerCluster",
         "status": "ACTIVE",
         "registeredContainerInstancesCount": 0,
         "runningTasksCount": 0,

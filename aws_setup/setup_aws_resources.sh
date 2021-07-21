@@ -34,10 +34,20 @@ aws ecs create-service \
     --task-definition $task_definition \
     --desired-count 1 \
     --launch-type "FARGATE" \
-    --network-configuration "awsvpcConfiguration={subnets=[subnet-32c0d06f],securityGroups=[sg-06098058f5f29e3a7],assignPublicIp=ENABLED}"
+    --network-configuration "awsvpcConfiguration={subnets=[subnet-32c0d06f],securityGroups=[sg-06098058f5f29e3a7],assignPublicIp=ENABLED}" > ecs_create_service_output.json
+
+echo "Waiting for service to be created..."
+sleep 180
 
 # get network interface id
+cluster_task_arn=`aws ecs list-tasks --cluster FargateMLServerCluster | grep arn | sed s/\"//g | sed s/\ //g`
+aws ecs describe-tasks \
+    --cluster FargateMLServerCluster \
+    --tasks $cluster_task_arn > FargateMLServerCluster_task_info.json
+
 cluster_eni=`python -c 'import json; obj=json.load(open("FargateMLServerCluster_task_info.json","r"));print(obj["tasks"][0]["attachments"][0]["details"][1]["value"])'`
 
 # get public ip of instance
 aws ec2 describe-network-interfaces --network-interface-id $cluster_eni | grep PublicIp | head -1 | sed s/.*\://g | sed s/\"//g > ../instance_public_ip.txt
+
+echo "Fargate cluster created. Use the IP in ../instance_public_ip.txt to evaluate the test set."

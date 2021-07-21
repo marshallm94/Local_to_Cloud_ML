@@ -12,6 +12,6 @@ RUN pip3 install -r ml_server_requirements.txt
 COPY prod_model.joblib prod_model.joblib
 COPY app.py app.py
 
-EXPOSE 5000
+EXPOSE 80 
 
 CMD ["python", "app.py"]
