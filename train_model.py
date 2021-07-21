@@ -8,7 +8,8 @@ from sklearn.model_selection import train_test_split
 # fit model
 X, y = make_classification(
         n_samples = 100000,
-        n_informative = 10
+        n_informative = 10,
+        random_state = 5
         )
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -24,3 +25,5 @@ dump(model, open('prod_model.joblib', 'wb'))
 test_df = pd.DataFrame(X_test)
 test_df['outcome'] = y_test
 dump(test_df, open('test_df.joblib', 'wb'))
+
+print('New model & new test data set created and saved to disk.')
