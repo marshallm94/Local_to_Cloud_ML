@@ -25,3 +25,10 @@
 
 # Things to research
 * execution role ARN vs task role ARN
+
+# IGW
+
+* Error: **(ResourceInitializationError: unable to pull secrets or registry auth: pull command failed: : signal: killed)**
+    * Solution: you need to make sure there is an IGW that is attached to your VPC and the subnet in which you service
+      is running!!!
+

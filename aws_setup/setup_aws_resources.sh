@@ -15,45 +15,32 @@ docker push $container_url
 ################################################################################
 # Configure Networking
 ################################################################################
-# attach IGW to VPC to allows public internet traffic
+# create & attach IGW to VPC to allow public access
 igw_id=`aws ec2 create-internet-gateway | grep InternetGatewayId | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
 vpc_id=`aws ec2 describe-vpcs | grep VpcId | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
 aws ec2 attach-internet-gateway \
     --vpc-id $vpc_id \
     --internet-gateway-id $igw_id
 
+# create route table & point all outgoing traffic to IGW
+route_table_id=`aws ec2 create-route-table --vpc-id $vpc_id | grep RouteTableId | awk '{print $2}' | awk 'gsub("\"", "", $1)' | awk 'gsub(",", "", $1)'`
+aws ec2 create-route \
+    --route-table-id $route_table_id \
+    --destination-cidr-block 0.0.0.0/0 \
+    --gateway-id $igw_id > /dev/null
+aws ec2 create-route \
+    --route-table-id $route_table_id \
+    --destination-ipv6-cidr-block ::/0 \
+    --gateway-id $igw_id > /dev/null
+
 # choose two subnets/AZ's for the application to reside in
-subnet_1_id=`aws ec2 describe-subnets | grep SubnetId | head -n 1 | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
-subnet_2_id=`aws ec2 describe-subnets | grep SubnetId | head -n 2 | tail -n 1 | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
+aws ec2 describe-subnets > describe_subnets_output.json
+subnet_1_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][0]["SubnetId"])'`
+az_1_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][0]["AvailabilityZone"])'`
 
-# creating security group and configuring to forward traffic from the IGW --> Load Balancer
-aws ec2 create-security-group \
-    --group-name FargateMLServerLoadBalancer-SecurityGroup \
-    --description "Security group for the load balancer used by FargateMLServerCluster" > create_security_group_output.json
-load_balancer_security_group_id=`python -c 'import json; obj=json.load(open("create_security_group_output.json","r"));print(obj["GroupId"])'`
-aws ec2 authorize-security-group-ingress \
-    --group-id $load_balancer_security_group_id \
-    --protocol tcp \
-    --port 80 \
-    --cidr 0.0.0.0/0 > /dev/null
-
-
-# configure load balancer
-# https://docs.aws.amazon.com/elasticloadbalancing/latest/application/tutorial-application-load-balancer-cli.htmlhttps://docs.aws.amazon.com/elasticloadbalancing/latest/application/tutorial-application-load-balancer-cli.html
-
-# 1. aws elbv2 create-load-balancer
-# 2. aws elbv2 create-target-group
-# 3. aws elbv2 register-targets help
-# 4. aws elbv2 create-listener
-
-aws elbv2 create-load-balancer \
-    --name MLServerLoadBalancer \
-    --subnets $subnet_1_id $subnet_2_id \
-    --security-groups $load_balancer_security_group_id > create_load_balancer_output.json
-# create target group 
-aws elbv2 create-target-group \
-    --name MLServerTargetGroup \
-    --target-type ip
+aws ec2 associate-route-table \
+    --route-table-id $route_table_id \
+    --subnet-id $subnet_1_id > /dev/null
 
 ################################################################################
 # Create Fargate Service
@@ -93,7 +80,7 @@ aws ecs create-service \
     --task-definition $task_definition \
     --desired-count 1 \
     --launch-type "FARGATE" \
-    --network-configuration "awsvpcConfiguration={subnets=[subnet-32c0d06f],securityGroups=[$security_group_id],assignPublicIp=ENABLED}" > ecs_create_service_output.json
+    --network-configuration "awsvpcConfiguration={subnets=[$subnet_1_id],securityGroups=[$security_group_id],assignPublicIp=ENABLED}" > ecs_create_service_output.json
     #--load-balancer FILL_ME_IN \
 
 echo "Waiting for service to be created..."
@@ -106,23 +93,18 @@ sleep 60
 cluster_task_arn=`aws ecs list-tasks --cluster FargateMLServerCluster | grep arn | sed s/\"//g | sed s/\ //g`
 aws ecs describe-tasks \
     --cluster FargateMLServerCluster \
-    --tasks $cluster_task_arn > FargateMLServerCluster_task_info.json
-cluster_eni=`python -c 'import json; obj=json.load(open("FargateMLServerCluster_task_info.json","r"));print(obj["tasks"][0]["attachments"][0]["details"][1]["value"])'`
+    --tasks $cluster_task_arn > FargateMLServerCluster_task_info_output.json
+cluster_eni=`python -c 'import json; obj=json.load(open("FargateMLServerCluster_task_info_output.json","r"));print(obj["tasks"][0]["attachments"][0]["details"][1]["value"])'`
 # get public ip of instance
-public_ip_endpoint=`aws ec2 describe-network-interfaces --network-interface-id $cluster_eni | grep PublicIp | head -1 | sed s/.*\://g | sed s/\"//g`
+public_ip_endpoint=`aws ec2 describe-network-interfaces --network-interface-id $cluster_eni | grep PublicIp | head -1 | sed s/.*\://g | sed s/\"//g | sed s/\ //g`
 echo "Fargate cluster created. Use the IP ( $public_ip_endpoint ) as input to test_api.py in the project root directory."
 
 ################################################################################
 # Delete output files
 ################################################################################
-echo 'Deleting output files...'
-rm FargateMLServerCluster_task_info.json
-rm cli_skeleton_filled.json
-rm create_iam_role_output.json
-rm create_security_group_output.json
-rm ecr_repo_output.json
-rm ecs_cluster_output.json
-rm ecs_create_service_output.json
-rm task_definition_output.json
+echo 'Deleting unnecessary files...'
+files_to_remove=`ls | grep output`
+rm $files_to_remove
+rm filled_task_definition_cli_skeleton.json
 echo 'Done'
 
