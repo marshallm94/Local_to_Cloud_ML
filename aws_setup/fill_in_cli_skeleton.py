@@ -6,7 +6,7 @@ if __name__ == '__main__':
             description='Fill in the CLI skeleton for an AWS Task Definition.'
             )
     parser.add_argument(
-            '--repo_url',
+            '--container_url',
             help='The full URL for the Docker image to be used in the Task definition'
             )
     parser.add_argument(
@@ -19,9 +19,9 @@ if __name__ == '__main__':
     with open(filled_filepath, 'r') as f:
         obj = json.load(f)
 
-    obj['containerDefinitions'][0]['image'] = args.repo_url
+    obj['containerDefinitions'][0]['image'] = args.container_url
 
     name, _ = args.cli_skeleton_filepath.split('.')
-    filled_filepath = name + '_filled.json'
+    filled_filepath = 'filled_' + name + '.json'
     with open(filled_filepath, 'w') as f:
         json.dump(obj, f)
