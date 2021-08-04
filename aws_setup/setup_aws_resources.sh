@@ -42,6 +42,38 @@ aws ec2 associate-route-table \
     --route-table-id $route_table_id \
     --subnet-id $subnet_1_id > /dev/null
 
+#subnet_2_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][1]["SubnetId"])'`
+#az_2_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][1]["AvailabilityZone"])'`
+
+# creating security group and configuring to forward traffic from the IGW --> Load Balancer
+# aws ec2 create-security-group \
+#     --group-name FargateMLServerLoadBalancer-SecurityGroup \
+#     --description "Security group for the load balancer used by FargateMLServerCluster" > create_security_group_output.json
+# load_balancer_security_group_id=`python -c 'import json; obj=json.load(open("create_security_group_output.json","r"));print(obj["GroupId"])'`
+# aws ec2 authorize-security-group-ingress \
+#     --group-id $load_balancer_security_group_id \
+#     --protocol tcp \
+#     --port 80 \
+#     --cidr 0.0.0.0/0 > /dev/null
+# 
+# 
+# # configure load balancer
+# # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/tutorial-application-load-balancer-cli.htmlhttps://docs.aws.amazon.com/elasticloadbalancing/latest/application/tutorial-application-load-balancer-cli.html
+# 
+# # 1. aws elbv2 create-load-balancer
+# # 2. aws elbv2 create-target-group
+# # 3. aws elbv2 register-targets help
+# # 4. aws elbv2 create-listener
+# 
+# aws elbv2 create-load-balancer \
+#     --name MLServerLoadBalancer \
+#     --subnets $subnet_1_id $subnet_2_id \
+#     --security-groups $load_balancer_security_group_id > create_load_balancer_output.json
+# # create target group 
+# aws elbv2 create-target-group \
+#     --name MLServerTargetGroup \
+#     --target-type ip
+
 ################################################################################
 # Create Fargate Service
 ################################################################################
