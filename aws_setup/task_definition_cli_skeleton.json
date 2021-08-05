@@ -1,5 +1,5 @@
 {
-    "family": "FargateMLServerTaskDefinition",
+    "family": "MLServer-TaskDefinition",
     "networkMode": "awsvpc",
     "containerDefinitions": [
         {
