@@ -1,0 +1,13 @@
+{
+  "launchType": "FARGATE",
+  "serviceName": "prediction-server",
+  "taskDefinition": "",
+  "loadBalancers": [
+    {
+      "targetGroupArn": "",
+      "containerName": "",
+      "containerPort": 80
+    }
+  ],
+  "desiredCount": 2
+}

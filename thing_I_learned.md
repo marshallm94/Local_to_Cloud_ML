@@ -31,6 +31,7 @@
 * Error: **(ResourceInitializationError: unable to pull secrets or registry auth: pull command failed: : signal: killed)**
     * Solution: you need to make sure there is an IGW that is attached to your VPC and the subnet in which you service
       is running!!!
+    * [See here](https://stackoverflow.com/questions/61265108/aws-ecs-fargate-resourceinitializationerror-unable-to-pull-secrets-or-registry)
 * You don't have to manually specify traffic forwarding from an instance/ALB to an IGW; the fact that the IGW exists
   ensures that traffic that is destined for the internet will go through the ALB.
 
