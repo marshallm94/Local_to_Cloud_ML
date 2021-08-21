@@ -2,6 +2,7 @@
 # Configure Networking
 ################################################################################
 # create & attach IGW to VPC to allow public access
+echo 'Creating IGW and attaching to VPC...'
 igw_id=`aws ec2 create-internet-gateway | grep InternetGatewayId | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
 vpc_id=`aws ec2 describe-vpcs | grep VpcId | sed s/^.*\://g | sed s/\"//g | sed s/,//g`
 aws ec2 attach-internet-gateway \
@@ -9,6 +10,7 @@ aws ec2 attach-internet-gateway \
     --internet-gateway-id $igw_id
 
 # all outgoing public destined traffic goes through IGW
+echo 'Routing all public internet bound traffic to flow through IGW...'
 route_table_id=`aws ec2 create-route-table --vpc-id $vpc_id | grep RouteTableId | awk '{print $2}' | awk 'gsub("\"", "", $1)' | awk 'gsub(",", "", $1)'`
 # IPv4
 aws ec2 create-route \
@@ -28,6 +30,74 @@ az_1_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.jso
 subnet_2_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][1]["SubnetId"])'`
 az_2_id=`python -c 'import json; obj=json.load(open("describe_subnets_output.json","r"));print(obj["Subnets"][1]["AvailabilityZone"])'`
 
+# setup network acl
+echo 'Configuring Network ACL...'
+aws ec2 create-network-acl \
+    --vpc-id $vpc_id > create_network_acl_output.json
+nacl_id=`cat create_network_acl_output.json | grep NetworkAclId | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+vpc_cidr_block=`aws ec2 describe-vpcs | grep CidrBlock | grep [0-9] | head -1 | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --ingress \
+    --rule-number 100 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=80,To=80 \
+    --rule-action allow
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --egress \
+    --rule-number 100 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=80,To=80 \
+    --rule-action allow
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --ingress \
+    --rule-number 200 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=443,To=443 \
+    --rule-action allow
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --egress \
+    --rule-number 200 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=443,To=443 \
+    --rule-action allow
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --ingress \
+    --rule-number 300 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=1024,To=65535 \
+    --rule-action allow
+aws ec2 create-network-acl-entry \
+    --network-acl-id $nacl_id \
+    --egress \
+    --rule-number 300 \
+    --cidr-block 0.0.0.0/0 \
+    --protocol tcp \
+    --port-range From=1024,To=65535 \
+    --rule-action allow
+
+declare -a subnets=($subnet_1_id $subnet_2_id)
+for i in "${subnets[@]}"
+do 
+    nacl_association_id=`aws ec2 describe-network-acls \
+        | grep $i -B 2 \
+        | grep NetworkAclAssociationId \
+        | awk '{print $2}' \
+        | sed s/\"//g | sed s/,//g`
+    aws ec2 replace-network-acl-association \
+        --association-id $nacl_association_id \
+        --network-acl-id $nacl_id > /dev/null # don't need to save the new association ID
+done
+
 aws ec2 associate-route-table \
     --route-table-id $route_table_id \
     --subnet-id $subnet_1_id > /dev/null
@@ -35,7 +105,9 @@ aws ec2 associate-route-table \
     --route-table-id $route_table_id \
     --subnet-id $subnet_2_id > /dev/null
 
-# allow all incoming traffic to go through ALB
+
+# allow all incoming traffic to go to ALB
+echo 'Configuring security group for ALB...'
 aws ec2 create-security-group \
     --group-name MLServerALB-SecurityGroup \
     --description "Security group for the MLServerALB" > create_alb_security_group_output.json
@@ -43,21 +115,17 @@ load_balancer_security_group_id=`python -c 'import json; obj=json.load(open("cre
 aws ec2 authorize-security-group-ingress \
     --group-id $load_balancer_security_group_id \
     --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0}] IpProtocol=tcp,FromPort=80,ToPort=80,Ipv6Ranges=[{CidrIpv6=::/0}] > /dev/null
+aws ec2 authorize-security-group-ingress \
+    --group-id $load_balancer_security_group_id \
+    --ip-permissions IpProtocol=tcp,FromPort=1024,ToPort=65535,IpRanges=[{CidrIp=0.0.0.0/0}] IpProtocol=tcp,FromPort=1024,ToPort=65535,Ipv6Ranges=[{CidrIpv6=::/0}] > /dev/null
+# does this need to be open to the ephemeral ports as well?
 
-# configure load balancer
-# https://docs.aws.amazon.com/elasticloadbalancing/latest/application/tutorial-application-load-balancer-cli.html
- 
- # 1. aws elbv2 create-load-balancer
- # 2. aws elbv2 create-target-group
- # 3. aws elbv2 register-targets help
- # 4. aws elbv2 create-listener help
- 
-aws elbv2 create-load-balancer help
+echo 'Creating ALB...'
 aws elbv2 create-load-balancer \
     --name MLServer-LoadBalancer \
+    --type application \
     --subnets $subnet_1_id $subnet_2_id \
     --security-groups $load_balancer_security_group_id > create_load_balancer_output.json
-# create target group 
 aws elbv2 create-target-group \
     --name MLServer-TargetGroup \
     --target-type ip \
@@ -72,21 +140,11 @@ aws elbv2 create-listener \
     --port 80 \
     --default-actions Type=forward,TargetGroupArn=$tg_arn > create_listener_output.json
 
-#       Example 3: To register targets with a target group by IP address
-#
-#       The  following  register-targets  example  registers  the  specified IP
-#       addresses with a target group. The target group must have a target type
-#       of ip.
-#
-#          aws elbv2 register-targets \
-#              --target-group-arn arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tcp-ip-targets/8518e899d173178f \
-#              --targets Id=10.0.1.15 Id=10.0.1.23
-
-
 ################################################################################
 # Push Docker image to ECR
 ################################################################################
 # creates ECR repo
+echo 'Pushing Docker Container to ECR...'
 aws ecr create-repository \
 	--repository-name ml-server > ecr_repo_output.json
 # gets container URL
@@ -101,6 +159,7 @@ docker push $container_url
 # Create Fargate Service
 ################################################################################
 # create IAM service role for Fargate cluster
+echo 'Creating Fargate Cluster...'
 aws iam create-role \
     --role-name MLServer-IAMRole \
     --assume-role-policy-document file://service_role_trust_policy.json > create_iam_role_output.json
@@ -125,21 +184,15 @@ aws ec2 create-security-group \
 cluster_security_group_id=`python -c 'import json; obj=json.load(open("create_cluster_security_group_output.json","r"));print(obj["GroupId"])'`
 aws ec2 authorize-security-group-ingress \
     --group-id $cluster_security_group_id \
-    --protocol tcp \
-    --port 80 \
-    --source-group $load_balancer_security_group_id > allow_alb_traffic_into_cluster_sg_output.json
-# NOTE: The Fargate cluster needs to be able to communicate with ECR in order to launch new instances. The better way to do this would be all privately, however right now I'm just trying to figure shit out so allowing
-# all public traffic to the cluster SG.
+    --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0}] IpProtocol=tcp,FromPort=80,ToPort=80,Ipv6Ranges=[{CidrIpv6=::/0}] > allow_alb_traffic_into_cluster_sg_output.json
 aws ec2 authorize-security-group-ingress \
     --group-id $cluster_security_group_id \
-    --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0}] IpProtocol=tcp,FromPort=80,ToPort=80,Ipv6Ranges=[{CidrIpv6=::/0}] > /dev/null
-
+    --ip-permissions IpProtocol=tcp,FromPort=1024,ToPort=65535,IpRanges=[{CidrIp=0.0.0.0/0}] IpProtocol=tcp,FromPort=1024,ToPort=65535,Ipv6Ranges=[{CidrIpv6=::/0}] > /dev/null
 python fill_in_create_service_input_file.py \
     --task-definition $task_definition \
     --target-group-arn $tg_arn \
     --container-name MLServer \
     --cli-skeleton-filepath create_service_cli_skeleton.json
-cat filled_create_service_cli_skeleton.json
 aws ecs create-service \
     --cluster MLServer-FargateCluster \
     --service-name prediction-server \
@@ -150,17 +203,10 @@ echo "Waiting for service to be created..."
 sleep 60
 
 ################################################################################
-# Get Public IP to test API
+# Get Public IP to of ALB
 ################################################################################
-# get network interface id
-cluster_task_arn=`aws ecs list-tasks --cluster MLServer-FargateCluster | grep arn | sed s/\"//g | sed s/\ //g`
-aws ecs describe-tasks \
-    --cluster MLServer-FargateCluster \
-    --tasks $cluster_task_arn > MLServer-FargateCluster_task_info_output.json
-cluster_eni=`python -c 'import json; obj=json.load(open("MLServer-FargateCluster_task_info_output.json","r"));print(obj["tasks"][0]["attachments"][0]["details"][1]["value"])'`
-# get public ip of instance
-public_ip_endpoint=`aws ec2 describe-network-interfaces --network-interface-id $cluster_eni | grep PublicIp | head -1 | sed s/.*\://g | sed s/\"//g | sed s/\ //g`
-echo "Fargate cluster created. Use the IP ( $public_ip_endpoint ) as input to test_api.py in the project root directory."
+public_ip=`aws elbv2 describe-load-balancers | grep $alb_arn -A 2 | grep DNSName | awk '{print $2}' | sed s/\ //g | sed s/,//g | sed s/\"//g`
+echo "Fargate cluster created. Use the IP ( $public_ip ) as input to test_api.py in the project root directory."
 
 ################################################################################
 # Delete output files

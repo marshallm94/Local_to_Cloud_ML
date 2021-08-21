@@ -35,3 +35,7 @@
 * You don't have to manually specify traffic forwarding from an instance/ALB to an IGW; the fact that the IGW exists
   ensures that traffic that is destined for the internet will go through the ALB.
 
+# General Notes
+
+* 2021-08-11: Went back to the master branch and am getting the same ResourceInitializationError as above. I doubt I
+  would have pushed from remote to origin with this happening.
