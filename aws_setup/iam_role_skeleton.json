@@ -1,6 +1,6 @@
 {
     "Path": "",
-    "RoleName": "FargateMLServerIAMRole",
+    "RoleName": "MLServer-IAMRole",
     "AssumeRolePolicyDocument": "",
     "Description": "Allows ECS tasks to call AWS services on your behalf.",
     "MaxSessionDuration": 0,

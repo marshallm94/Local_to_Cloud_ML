@@ -24,4 +24,4 @@ if __name__ == '__main__':
     name, _ = args.cli_skeleton_filepath.split('.')
     filled_filepath = 'filled_' + name + '.json'
     with open(filled_filepath, 'w') as f:
-        json.dump(obj, f)
+        json.dump(obj, f, indent=4)
