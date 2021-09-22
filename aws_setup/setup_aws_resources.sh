@@ -1,5 +1,5 @@
 ################################################################################
-# Configure Networking
+# Configure Networking & Setup ALB
 ################################################################################
 # create & attach IGW to VPC to allow public access
 echo 'Creating IGW and attaching to VPC...'
@@ -105,7 +105,6 @@ aws ec2 associate-route-table \
     --route-table-id $route_table_id \
     --subnet-id $subnet_2_id > /dev/null
 
-
 # allow all incoming traffic to go to ALB
 echo 'Configuring security group for ALB...'
 aws ec2 create-security-group \
@@ -203,6 +202,57 @@ echo "Waiting for service to be created..."
 sleep 60
 
 ################################################################################
+# Make Service AutoScalable 
+################################################################################
+service_id=`cat ecs_create_service_output.json | grep serviceArn | awk '{print $2}' | awk '{gsub("^.*:service","service", $1); print}' | sed s/\"//g | sed s/,//g`
+aws application-autoscaling register-scalable-target \
+    --service-namespace ecs \
+    --resource-id $service_id \
+    --scalable-dimension ecs:service:DesiredCount \
+    --min-capacity 2 \
+    --max-capacity 10
+
+# create resource_label for target-tracking-policy-configuration
+alb_name=`echo "$alb_arn/" | awk '{gsub("^.*loadbalancer/","", $1); print}'`
+tg_name=`aws elbv2 describe-target-groups | grep TargetGroupArn | awk '{print $2}' | awk '{gsub("^.*targetgroup","targetgroup", $1); print}' | awk '{gsub("\"|,", "", $1); print}'`
+resource_label=`echo \"$alb_name$tg_name\"`
+
+aws application-autoscaling put-scaling-policy \
+    --service-namespace ecs \
+    --resource-id $service_id \
+    --scalable-dimension ecs:service:DesiredCount \
+    --policy-type TargetTrackingScaling \
+    --policy-name request-count-scaling-policy \
+    --target-tracking-scaling-policy-configuration '{"TargetValue": 100, "PredefinedMetricSpecification": { "PredefinedMetricType": "ALBRequestCountPerTarget", "ResourceLabel": '$resource_label' }, "ScaleOutCooldown": 60, "ScaleInCooldown": 60 }' > put_autoscaling_policy_output.json
+
+autoscaling_policy_arn=`cat put_autoscaling_policy_output.json | grep PolicyARN | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+
+# scale out
+aws cloudwatch put-metric-alarm \
+    --alarm-name MLServer-ScaleOut \
+    --metric-name ALBRequestCountPerTarget \
+    --namespace AWS/ECS \
+    --statistic Sum \
+    --evaluation-periods 1 \
+    --period 60 \
+    --threshold 10 \
+    --comparison-operator GreaterThanOrEqualToThreshold \
+    --datapoints-to-alarm 1 \
+    --alarm-actions $autoscaling_policy_arn
+# scale in
+aws cloudwatch put-metric-alarm \
+    --alarm-name MLServer-ScaleIn \
+    --metric-name ALBRequestCountPerTarget \
+    --namespace AWS/ECS \
+    --statistic Sum \
+    --evaluation-periods 1 \
+    --period 60 \
+    --threshold 10 \
+    --comparison-operator LessThanThreshold \
+    --datapoints-to-alarm 1 \
+    --alarm-actions $autoscaling_policy_arn
+
+################################################################################
 # Get Public IP to of ALB
 ################################################################################
 public_ip=`aws elbv2 describe-load-balancers | grep $alb_arn -A 2 | grep DNSName | awk '{print $2}' | sed s/\ //g | sed s/,//g | sed s/\"//g`
@@ -217,4 +267,3 @@ rm $files_to_remove
 files_to_remove=`ls | grep filled`
 rm $files_to_remove
 echo 'Done'
-
