@@ -1,11 +1,11 @@
-# Local to Cloud ML
+# Serverless Machine Learning API
 
 The goal of the project is to familiarize myself with deploying statistical models into the cloud. The goal is **not**
 to build/create the most interesting statistical model that solves an interesting problem.
 
 # General Map 
 
-![](images/local_to_cloud_ml.png)
+![](images/serverless_ml_api.png)
 
 ## Steps to build & test "ML Prediction Server" (locally)
 
@@ -29,3 +29,7 @@ to build/create the most interesting statistical model that solves an interestin
 ## Steps to test if the service is working 
 
 1. Run `$ python test_api.py <instance_public_ip_address>`. The accuracy of the test set will be printed.
+
+# TODO
+
+* Add a NAT Gateway so the ALB can the be only component in a public subnet (with the Fargate task in private subnets)

@@ -14,6 +14,10 @@ prod_model = load(open( model_file, 'rb' ))
 def index():
     return 'you have arrived brother'
 
+@app.route('/heartbeat')
+def heartbeat():
+    return 'thump thump\n'
+
 @app.route('/get_predictions/', methods=['POST'])
 def predict(model=prod_model):
     if request.method == 'POST':

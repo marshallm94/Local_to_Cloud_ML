@@ -12,6 +12,10 @@ aws ecs delete-service --cluster $cluster_arn --service $service_arn > /dev/null
 # delete ALB & Target groups
 alb_arn=`aws elbv2 describe-load-balancers | grep MLServer | grep arn | awk '{print $2}' | sed s/\"//g | sed s/,//g`
 aws elbv2 delete-load-balancer --load-balancer-arn $alb_arn
+
+# PICK UP HREE
+aws elbv2 describe-listeners --load-balancer-arn $alb_arn
+
 tg_arn=`aws elbv2 describe-target-groups | grep TargetGroupArn | awk '{print $2}' | sed s/\"//g | sed s/,//g`
 aws elbv2 delete-target-group --target-group-arn $tg_arn
 
@@ -55,6 +59,7 @@ do
         --association-id $nacl_association_id \
         --network-acl-id $default_nacl_id > /dev/null
 done
+
 aws ec2 delete-network-acl \
     --network-acl-id $nacl_id
 
@@ -82,6 +87,30 @@ do
     done
     aws ec2 delete-route-table --route-table-id $i
 done
+
+# delete autoscaling components
+alarm_arns=`aws cloudwatch describe-alarms | grep AlarmArn | awk '{print $2}' | awk '{gsub("^.*alarm\:", ""); print}' | sed s/\"//g | sed s/,//g`
+aws cloudwatch delete-alarms \
+    --alarm-names $alarm_arns
+
+aws application-autoscaling describe-scaling-policies \
+    --service-namespace ecs > describe_scaling_policies_output.json
+policy_resource_id=`cat describe_scaling_policies_output.json | grep ResourceId | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+policy_name=`cat describe_scaling_policies_output.json | grep PolicyName | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+policy_namespace=`cat describe_scaling_policies_output.json | grep ServiceNamespace | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+policy_dimension=`cat describe_scaling_policies_output.json | grep ScalableDimension | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+aws application-autoscaling delete-scaling-policy \
+    --policy-name $policy_name \
+    --service-namespace $policy_namespace \
+    --resource-id $policy_resource_id \
+    --scalable-dimension $policy_dimension
+
+target_resource_id=`aws application-autoscaling describe-scalable-targets --service-namespace ecs | grep ResourceId | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+target_scalable_dimension=`aws application-autoscaling describe-scalable-targets --service-namespace ecs | grep ScalableDimension | awk '{print $2}' | sed s/\"//g | sed s/,//g`
+aws application-autoscaling deregister-scalable-target \
+    --service-namespace ecs \
+    --resource-id $target_resource_id \
+    --scalable-dimension $target_scalable_dimension
 
 aws ecs delete-cluster --cluster $cluster_arn > /dev/null
 

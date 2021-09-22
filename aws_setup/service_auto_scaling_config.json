@@ -1,0 +1,9 @@
+{
+  "TargetValue": 100,
+  "PredefinedMetricSpecification": {
+    "PredefinedMetricType": "ALBRequestCountPerTarget",
+    "ResourceLabel": "bing"
+  },
+  "ScaleOutCooldown": 60,
+  "ScaleInCooldown": 60
+}
