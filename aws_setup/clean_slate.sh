@@ -12,10 +12,7 @@ aws ecs delete-service --cluster $cluster_arn --service $service_arn > /dev/null
 # delete ALB & Target groups
 alb_arn=`aws elbv2 describe-load-balancers | grep MLServer | grep arn | awk '{print $2}' | sed s/\"//g | sed s/,//g`
 aws elbv2 delete-load-balancer --load-balancer-arn $alb_arn
-
-# PICK UP HREE
-aws elbv2 describe-listeners --load-balancer-arn $alb_arn
-
+sleep 60
 tg_arn=`aws elbv2 describe-target-groups | grep TargetGroupArn | awk '{print $2}' | sed s/\"//g | sed s/,//g`
 aws elbv2 delete-target-group --target-group-arn $tg_arn
 
